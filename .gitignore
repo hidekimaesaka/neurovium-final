@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+.android-sdk/
+dist/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.log
+
+# APKs locais. O release abaixo é versionado de propósito.
+*.apk
+!neurovium-release.apk

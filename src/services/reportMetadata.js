@@ -1,0 +1,20 @@
+export const domainLabels = {
+  attention: "Atenção e concentração",
+  autonomy: "Autonomia durante a atividade",
+  cognitiveFlexibility: "Flexibilidade cognitiva",
+  decisionMaking: "Tomada de decisão",
+  errorMonitoring: "Monitoramento de erros",
+  executiveFunction: "Função executiva",
+  instructionRetention: "Retenção de instruções",
+  logicalReasoning: "Raciocínio lógico",
+  patternPerception: "Percepção de padrões",
+  persistence: "Persistência e tolerância à frustração",
+  planning: "Planejamento",
+  problemSolving: "Resolução de problemas",
+  processingSpeed: "Velocidade de processamento",
+  recentMemory: "Memória recente",
+  strategyLearning: "Aprendizagem de estratégias",
+  taskOrganization: "Organização da tarefa",
+  visuospatial: "Habilidade visuoespacial",
+  workingMemory: "Memória de trabalho"
+};
