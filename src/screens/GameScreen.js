@@ -1,5 +1,5 @@
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useState } from "react";
+import { Animated, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
 
 import AppButton from "../components/AppButton";
 import { colors, radii, spacing } from "../styles/theme";
@@ -100,13 +100,79 @@ export default function GameScreen({
   const [localMatch, setLocalMatch] = useState(match);
   const [selectedCell, setSelectedCell] = useState(firstEditableCell(match));
   const [selectionStartedAt, setSelectionStartedAt] = useState(null);
+  const [wrongCell, setWrongCell] = useState(null);
+  const [errorPopupVisible, setErrorPopupVisible] = useState(false);
+  const errorScale = useRef(new Animated.Value(0.88)).current;
+  const errorOpacity = useRef(new Animated.Value(0)).current;
+  const shake = useRef(new Animated.Value(0)).current;
+  const popupTimer = useRef(null);
 
   const grid = localMatch?.userGrid || localMatch?.puzzle || [];
   const flatGrid = grid.flat();
 
+  useEffect(() => () => {
+    if (popupTimer.current) {
+      clearTimeout(popupTimer.current);
+    }
+  }, []);
+
   async function updateMatch(nextMatch) {
     setLocalMatch(nextMatch);
     await onMatchUpdate(nextMatch);
+  }
+
+  function showErrorFeedback(cellIndex) {
+    if (popupTimer.current) {
+      clearTimeout(popupTimer.current);
+    }
+
+    setWrongCell(cellIndex);
+    setErrorPopupVisible(true);
+    errorScale.setValue(0.88);
+    errorOpacity.setValue(0);
+    shake.setValue(0);
+
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(shake, {
+          duration: 55,
+          toValue: 1,
+          useNativeDriver: true
+        }),
+        Animated.timing(shake, {
+          duration: 55,
+          toValue: -1,
+          useNativeDriver: true
+        }),
+        Animated.timing(shake, {
+          duration: 55,
+          toValue: 1,
+          useNativeDriver: true
+        }),
+        Animated.timing(shake, {
+          duration: 55,
+          toValue: 0,
+          useNativeDriver: true
+        })
+      ]),
+      Animated.parallel([
+        Animated.spring(errorScale, {
+          friction: 6,
+          tension: 90,
+          toValue: 1,
+          useNativeDriver: true
+        }),
+        Animated.timing(errorOpacity, {
+          duration: 180,
+          toValue: 1,
+          useNativeDriver: true
+        })
+      ])
+    ]).start();
+
+    popupTimer.current = setTimeout(() => {
+      setErrorPopupVisible(false);
+    }, 1800);
   }
 
   async function selectCell(index) {
@@ -128,6 +194,7 @@ export default function GameScreen({
 
     setSelectedCell(index);
     setSelectionStartedAt(at);
+    setWrongCell(null);
     await updateMatch({
       ...localMatch,
       events: [...(localMatch.events || []), event],
@@ -186,14 +253,17 @@ export default function GameScreen({
         event.cellIndex === selectedCell
     ).length;
 
+    const conflictTypes = conflictTypesFor(nextGrid, selectedCell, value);
+
     events.push({
       at,
       cellIndex: selectedCell,
       column,
       block: cellBlock(selectedCell),
-      conflictTypes: conflictTypesFor(nextGrid, selectedCell, value),
+      conflictTypes,
       correctValue,
       difficulty: localMatch.difficulty,
+      hasConflict: conflictTypes.length > 0,
       id: `event-${Date.now()}`,
       isCorrect,
       previousValue,
@@ -220,6 +290,12 @@ export default function GameScreen({
       userGrid: nextGrid
     };
 
+    if (!isCorrect) {
+      showErrorFeedback(selectedCell);
+    } else {
+      setWrongCell(null);
+    }
+
     if (isSolved(localMatch, nextGrid)) {
       await onMatchEnd(nextMatch, "completed");
       return;
@@ -244,6 +320,7 @@ export default function GameScreen({
     nextGrid[row][column] = 0;
 
     const at = nowIso();
+    setWrongCell(null);
     await updateMatch({
       ...localMatch,
       candidates: {
@@ -304,10 +381,25 @@ export default function GameScreen({
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.board}>
+        <Animated.View
+          style={[
+            styles.board,
+            {
+              transform: [
+                {
+                  translateX: shake.interpolate({
+                    inputRange: [-1, 0, 1],
+                    outputRange: [-8, 0, 8]
+                  })
+                }
+              ]
+            }
+          ]}
+        >
           {flatGrid.map((value, index) => {
             const fixed = localMatch.fixedCells[index];
             const selected = selectedCell === index;
+            const incorrect = wrongCell === index;
 
             return (
               <TouchableOpacity
@@ -318,6 +410,7 @@ export default function GameScreen({
                   styles.cell,
                   fixed && styles.fixedCell,
                   selected && styles.selectedCell,
+                  incorrect && styles.incorrectCell,
                   index % 3 === 2 && index % 9 !== 8 && styles.blockRight,
                   Math.floor(index / 9) % 3 === 2 && index < 54 && styles.blockBottom
                 ]}
@@ -328,7 +421,7 @@ export default function GameScreen({
               </TouchableOpacity>
             );
           })}
-        </View>
+        </Animated.View>
 
         <View style={styles.keypad}>
           {Array.from({ length: 9 }, (_, index) => index + 1).map((value) => (
@@ -348,6 +441,35 @@ export default function GameScreen({
           <AppButton onPress={finishEarly} title="Sair" variant="ghost" />
         </View>
       </ScrollView>
+
+      <Modal
+        animationType="none"
+        onRequestClose={() => setErrorPopupVisible(false)}
+        transparent
+        visible={errorPopupVisible}
+      >
+        <View style={styles.popupOverlay} pointerEvents="box-none">
+          <Animated.View
+            style={[
+              styles.errorPopup,
+              {
+                opacity: errorOpacity,
+                transform: [{ scale: errorScale }]
+              }
+            ]}
+          >
+            <Text style={styles.errorTitle}>Valor incorreto</Text>
+            <Text style={styles.errorText}>Revise a linha, coluna e bloco antes de tentar novamente.</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => setErrorPopupVisible(false)}
+              style={styles.errorAction}
+            >
+              <Text style={styles.errorActionText}>Entendi</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -418,6 +540,51 @@ const styles = StyleSheet.create({
   fixedText: {
     color: "#111827"
   },
+  errorAction: {
+    alignItems: "center",
+    backgroundColor: "#991B1B",
+    borderRadius: radii.sm,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: spacing.lg
+  },
+  errorActionText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  errorPopup: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#F87171",
+    borderRadius: radii.md,
+    borderWidth: 2,
+    elevation: 8,
+    gap: spacing.sm,
+    maxWidth: 340,
+    padding: spacing.lg,
+    shadowColor: "#000000",
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    width: "86%"
+  },
+  errorText: {
+    color: "#4B5563",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
+    textAlign: "center"
+  },
+  errorTitle: {
+    color: "#991B1B",
+    fontSize: 21,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  incorrectCell: {
+    backgroundColor: "#FEE2E2"
+  },
   key: {
     alignItems: "center",
     backgroundColor: "#FFFFFF",
@@ -445,6 +612,12 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1
+  },
+  popupOverlay: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    padding: spacing.lg
   },
   selectedCell: {
     backgroundColor: "#BFDBFE"

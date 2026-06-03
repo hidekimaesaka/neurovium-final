@@ -57,7 +57,6 @@ export default function ResultScreen({
           <SummaryItem label="Tempo" value={formatDuration(summary?.durationSeconds)} />
           <SummaryItem label="Acertos" value={String(summary?.correctMoves || 0)} />
           <SummaryItem label="Erros" value={String(summary?.incorrectMoves || 0)} />
-          <SummaryItem label="Progresso" value={`${summary?.progress || 0}%`} />
         </View>
 
         <View style={styles.actions}>

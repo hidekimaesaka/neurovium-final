@@ -124,6 +124,40 @@ function userDomainAverages(history = []) {
   }));
 }
 
+function calculationGuideHtml() {
+  return `
+    <section class="calculation-page">
+      <h2>Como o sistema efetua os cálculos</h2>
+      <p>As métricas são observacionais e derivadas dos eventos registrados durante a partida: seleção de células, inserção de valores, erros, correções, pausas, dicas, candidatos e tempo entre ações.</p>
+
+      <h3>Resumo da partida</h3>
+      <ul>
+        <li><strong>Precisão:</strong> acertos divididos pelo total de jogadas, multiplicado por 100.</li>
+        <li><strong>Progresso ou conclusão:</strong> acertos divididos pela quantidade de células vazias do desafio, multiplicado por 100.</li>
+        <li><strong>Tempo médio por jogada:</strong> média dos segundos entre uma jogada e a próxima.</li>
+        <li><strong>Tempo médio de decisão:</strong> média dos segundos entre selecionar uma célula e inserir um valor.</li>
+        <li><strong>Erros repetidos:</strong> quantidade de células que receberam mais de uma jogada incorreta.</li>
+        <li><strong>Erros corrigidos:</strong> jogadas incorretas que depois receberam o valor correto na mesma célula.</li>
+      </ul>
+
+      <h3>Indicadores cognitivos</h3>
+      <ul>
+        <li><strong>Memória de trabalho:</strong> reduz a pontuação por erros repetidos, longas inatividades e uso de candidatos.</li>
+        <li><strong>Memória recente:</strong> reduz a pontuação quando há repetição recente de erro na mesma célula.</li>
+        <li><strong>Atenção:</strong> considera longos períodos sem ação e seleções que não resultaram em jogada.</li>
+        <li><strong>Função executiva e tomada de decisão:</strong> partem da precisão e descontam erros rápidos após a seleção.</li>
+        <li><strong>Planejamento e organização:</strong> observam alternância entre regiões distantes do tabuleiro e uso de candidatos.</li>
+        <li><strong>Raciocínio lógico e visuoespacial:</strong> usam a precisão e conflitos visíveis por linha, coluna ou bloco.</li>
+        <li><strong>Monitoramento de erro:</strong> calcula a proporção de erros que foram corrigidos durante a atividade.</li>
+        <li><strong>Velocidade de processamento:</strong> reduz a pontuação conforme aumenta o tempo médio por jogada.</li>
+        <li><strong>Persistência e autonomia:</strong> consideram abandono, progresso da tarefa e quantidade de pedidos de ajuda.</li>
+      </ul>
+
+      <p>Todos os percentuais são limitados ao intervalo de 0 a 100. A interpretação deve ser feita em conjunto com o contexto clínico, histórico do participante e observação profissional.</p>
+    </section>
+  `;
+}
+
 export function buildUserReportPayload({ history = [], user }) {
   const completed = history.filter((match) => match.cognitiveAnalysis);
   const stats = historyStats(history);
@@ -227,6 +261,7 @@ function reportHtml(payload) {
           .note { background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 12px; }
           .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
           .metric { background: #F8F7FF; border-radius: 6px; padding: 8px; }
+          .calculation-page { page-break-before: always; }
           section { margin-bottom: 14px; }
           svg { background: #F8F7FF; border: 1px solid #DDD6FE; border-radius: 8px; }
         </style>
@@ -274,6 +309,8 @@ function reportHtml(payload) {
         <h2>Linguagem e explicação do raciocínio</h2>
         <p><strong>Texto:</strong> ${payload.qualitative.reasoningExplanation || "Não informado."}</p>
         <p><strong>Observação:</strong> ${payload.qualitative.assessment}</p>
+
+        ${calculationGuideHtml()}
       </body>
     </html>
   `;
@@ -318,6 +355,7 @@ function userReportHtml(payload) {
           .note { background: #15111F; border: 1px solid #332A46; border-radius: 8px; color: #A8A4B8; padding: 12px; }
           .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
           .metric { background: #15111F; border: 1px solid #332A46; border-radius: 6px; padding: 8px; }
+          .calculation-page { page-break-before: always; }
           table { border-collapse: collapse; margin-top: 10px; width: 100%; }
           th { color: #C4B5FD; text-align: left; }
           td, th { border-bottom: 1px solid #332A46; padding: 8px; }
@@ -360,6 +398,8 @@ function userReportHtml(payload) {
           <thead><tr><th>Data</th><th>Dificuldade</th><th>Status</th><th>Tempo</th><th>Precisão</th><th>Conclusão</th></tr></thead>
           <tbody>${matchRows}</tbody>
         </table>
+
+        ${calculationGuideHtml()}
       </body>
     </html>
   `;
