@@ -1,4 +1,5 @@
 import { Animated, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useKeepAwake } from "expo-keep-awake";
 import { useEffect, useRef, useState } from "react";
 
 import AppButton from "../components/AppButton";
@@ -97,6 +98,8 @@ export default function GameScreen({
   onMatchEnd,
   onMatchUpdate
 }) {
+  useKeepAwake("neurovium-game");
+
   const [localMatch, setLocalMatch] = useState(match);
   const [selectedCell, setSelectedCell] = useState(firstEditableCell(match));
   const [selectionStartedAt, setSelectionStartedAt] = useState(null);
