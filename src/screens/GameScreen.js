@@ -1,6 +1,6 @@
 import { Animated, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useKeepAwake } from "expo-keep-awake";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import AppButton from "../components/AppButton";
 import { colors, radii, spacing } from "../styles/theme";
@@ -108,16 +108,9 @@ export default function GameScreen({
   const errorScale = useRef(new Animated.Value(0.88)).current;
   const errorOpacity = useRef(new Animated.Value(0)).current;
   const shake = useRef(new Animated.Value(0)).current;
-  const popupTimer = useRef(null);
 
   const grid = localMatch?.userGrid || localMatch?.puzzle || [];
   const flatGrid = grid.flat();
-
-  useEffect(() => () => {
-    if (popupTimer.current) {
-      clearTimeout(popupTimer.current);
-    }
-  }, []);
 
   async function updateMatch(nextMatch) {
     setLocalMatch(nextMatch);
@@ -125,10 +118,6 @@ export default function GameScreen({
   }
 
   function showErrorFeedback(cellIndex) {
-    if (popupTimer.current) {
-      clearTimeout(popupTimer.current);
-    }
-
     setWrongCell(cellIndex);
     setErrorPopupVisible(true);
     errorScale.setValue(0.88);
@@ -172,10 +161,6 @@ export default function GameScreen({
         })
       ])
     ]).start();
-
-    popupTimer.current = setTimeout(() => {
-      setErrorPopupVisible(false);
-    }, 1800);
   }
 
   async function selectCell(index) {
@@ -307,13 +292,13 @@ export default function GameScreen({
     await updateMatch(nextMatch);
   }
 
-  async function clearSelectedCell() {
-    if (!localMatch || selectedCell === null || localMatch.fixedCells[selectedCell]) {
+  async function eraseCell(cellIndex) {
+    if (!localMatch || cellIndex === null || localMatch.fixedCells[cellIndex]) {
       return;
     }
 
-    const row = cellRow(selectedCell);
-    const column = cellColumn(selectedCell);
+    const row = cellRow(cellIndex);
+    const column = cellColumn(cellIndex);
     if (!grid[row][column]) {
       return;
     }
@@ -328,13 +313,13 @@ export default function GameScreen({
       ...localMatch,
       candidates: {
         ...(localMatch.candidates || {}),
-        [selectedCell]: []
+        [cellIndex]: []
       },
       events: [
         ...(localMatch.events || []),
         {
           at,
-          cellIndex: selectedCell,
+          cellIndex,
           previousValue,
           secondsSinceLastAction: secondsFrom(localMatch.lastActionAt || localMatch.startedAt),
           secondsSinceStart: secondsFrom(localMatch.startedAt),
@@ -345,6 +330,15 @@ export default function GameScreen({
       lastInteractionAt: at,
       userGrid: nextGrid
     });
+  }
+
+  async function clearSelectedCell() {
+    await eraseCell(selectedCell);
+  }
+
+  async function confirmErrorPopup() {
+    await eraseCell(wrongCell);
+    setErrorPopupVisible(false);
   }
 
   async function finishEarly() {
@@ -447,7 +441,7 @@ export default function GameScreen({
 
       <Modal
         animationType="none"
-        onRequestClose={() => setErrorPopupVisible(false)}
+        onRequestClose={() => {}}
         transparent
         visible={errorPopupVisible}
       >
@@ -465,10 +459,10 @@ export default function GameScreen({
             <Text style={styles.errorText}>Revise a linha, coluna e bloco antes de tentar novamente.</Text>
             <TouchableOpacity
               accessibilityRole="button"
-              onPress={() => setErrorPopupVisible(false)}
+              onPress={confirmErrorPopup}
               style={styles.errorAction}
             >
-              <Text style={styles.errorActionText}>Entendi</Text>
+              <Text style={styles.errorActionText}>OK</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
